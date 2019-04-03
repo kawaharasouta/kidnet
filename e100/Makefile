@@ -1,4 +1,4 @@
-obj-m := e100k.o
+obj-m := e100.o
 #PWD := $(shell pwd)
 
 all:
