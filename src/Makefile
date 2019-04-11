@@ -1,4 +1,5 @@
 obj-m := kidnet.o
+kidnet-objs := 
 #PWD := $(shell pwd)
 
 all:
