@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Intel PRO/1000 Linux driver
-# Copyright(c) 1999 - 2014 Intel Corporation.
+# Copyright(c) 1999 - 2006 Intel Corporation.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms and conditions of the GNU General Public License,
@@ -12,8 +12,9 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 # more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # The full GNU General Public License is included in this distribution in
 # the file called "COPYING".
@@ -29,11 +30,11 @@
 # Makefile for the Intel(R) PRO/1000 ethernet driver
 #
 
-#CFILES = 
-obj-m += e1000e.o
-e1000e-objs := 82571.o ich8lan.o 80003es2lan.o \
-	       mac.o manage.o nvm.o phy.o \
-	       param.o ethtool.o netdev.o ptp.o
+#obj-$(CONFIG_E1000) += e1000.o
+
+CFILES = e1000_main.c e1000_hw.c e1000_ethtool.c e1000_param.c
+obj-m := e1000.o
+e1000-objs := $(CFILES:.c=.o)
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(CURDIR) modules
