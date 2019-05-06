@@ -4755,44 +4755,6 @@ int e1000e_close(struct net_device *netdev)
 	return 0;
 }
 
-/**
- * e1000_set_mac - Change the Ethernet Address of the NIC
- * @netdev: network interface device structure
- * @p: pointer to an address structure
- *
- * Returns 0 on success, negative on failure
- **/
-static int e1000_set_mac(struct net_device *netdev, void *p)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
-	struct sockaddr *addr = p;
-
-	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
-
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-	memcpy(adapter->hw.mac.addr, addr->sa_data, netdev->addr_len);
-
-	hw->mac.ops.rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
-
-	if (adapter->flags & FLAG_RESET_OVERWRITES_LAA) {
-		/* activate the work around */
-		e1000e_set_laa_state_82571(&adapter->hw, 1);
-
-		/* Hold a copy of the LAA in RAR[14] This is done so that
-		 * between the time RAR[0] gets clobbered  and the time it
-		 * gets fixed (in e1000_watchdog), the actual LAA is in one
-		 * of the RARs and no incoming packets directed to this port
-		 * are dropped. Eventually the LAA will be in RAR[0] and
-		 * RAR[14]
-		 */
-		hw->mac.ops.rar_set(&adapter->hw, adapter->hw.mac.addr,
-				    adapter->hw.mac.rar_entry_count - 1);
-	}
-
-	return 0;
-}
 
 /**
  * e1000e_update_phy_task - work thread to update phy
@@ -5930,18 +5892,6 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-/**
- * e1000_tx_timeout - Respond to a Tx Hang
- * @netdev: network interface device structure
- **/
-static void e1000_tx_timeout(struct net_device *netdev)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-
-	/* Do the reset outside of interrupt context */
-	adapter->tx_timeout_count++;
-	schedule_work(&adapter->reset_task);
-}
 
 static void e1000_reset_task(struct work_struct *work)
 {
@@ -6005,206 +5955,6 @@ void e1000e_get_stats64(struct net_device *netdev,
 	spin_unlock(&adapter->stats64_lock);
 }
 
-/**
- * e1000_change_mtu - Change the Maximum Transfer Unit
- * @netdev: network interface device structure
- * @new_mtu: new value for maximum frame size
- *
- * Returns 0 on success, negative on failure
- **/
-static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-	int max_frame = new_mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
-
-	/* Jumbo frame support */
-	if ((new_mtu > ETH_DATA_LEN) &&
-	    !(adapter->flags & FLAG_HAS_JUMBO_FRAMES)) {
-		e_err("Jumbo Frames not supported.\n");
-		return -EINVAL;
-	}
-
-	/* Jumbo frame workaround on 82579 and newer requires CRC be stripped */
-	if ((adapter->hw.mac.type >= e1000_pch2lan) &&
-	    !(adapter->flags2 & FLAG2_CRC_STRIPPING) &&
-	    (new_mtu > ETH_DATA_LEN)) {
-		e_err("Jumbo Frames not supported on this device when CRC stripping is disabled.\n");
-		return -EINVAL;
-	}
-
-	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
-		usleep_range(1000, 2000);
-	/* e1000e_down -> e1000e_reset dependent on max_frame_size & mtu */
-	adapter->max_frame_size = max_frame;
-	e_info("changing MTU from %d to %d\n", netdev->mtu, new_mtu);
-	netdev->mtu = new_mtu;
-
-	pm_runtime_get_sync(netdev->dev.parent);
-
-	if (netif_running(netdev))
-		e1000e_down(adapter, true);
-
-	/* NOTE: netdev_alloc_skb reserves 16 bytes, and typically NET_IP_ALIGN
-	 * means we reserve 2 more, this pushes us to allocate from the next
-	 * larger slab size.
-	 * i.e. RXBUFFER_2048 --> size-4096 slab
-	 * However with the new *_jumbo_rx* routines, jumbo receives will use
-	 * fragmented skbs
-	 */
-
-	if (max_frame <= 2048)
-		adapter->rx_buffer_len = 2048;
-	else
-		adapter->rx_buffer_len = 4096;
-
-	/* adjust allocation if LPE protects us, and we aren't using SBP */
-	if (max_frame <= (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN))
-		adapter->rx_buffer_len = VLAN_ETH_FRAME_LEN + ETH_FCS_LEN;
-
-	if (netif_running(netdev))
-		e1000e_up(adapter);
-	else
-		e1000e_reset(adapter);
-
-	pm_runtime_put_sync(netdev->dev.parent);
-
-	clear_bit(__E1000_RESETTING, &adapter->state);
-
-	return 0;
-}
-
-static int e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr,
-			   int cmd)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct mii_ioctl_data *data = if_mii(ifr);
-
-	if (adapter->hw.phy.media_type != e1000_media_type_copper)
-		return -EOPNOTSUPP;
-
-	switch (cmd) {
-	case SIOCGMIIPHY:
-		data->phy_id = adapter->hw.phy.addr;
-		break;
-	case SIOCGMIIREG:
-		e1000_phy_read_status(adapter);
-
-		switch (data->reg_num & 0x1F) {
-		case MII_BMCR:
-			data->val_out = adapter->phy_regs.bmcr;
-			break;
-		case MII_BMSR:
-			data->val_out = adapter->phy_regs.bmsr;
-			break;
-		case MII_PHYSID1:
-			data->val_out = (adapter->hw.phy.id >> 16);
-			break;
-		case MII_PHYSID2:
-			data->val_out = (adapter->hw.phy.id & 0xFFFF);
-			break;
-		case MII_ADVERTISE:
-			data->val_out = adapter->phy_regs.advertise;
-			break;
-		case MII_LPA:
-			data->val_out = adapter->phy_regs.lpa;
-			break;
-		case MII_EXPANSION:
-			data->val_out = adapter->phy_regs.expansion;
-			break;
-		case MII_CTRL1000:
-			data->val_out = adapter->phy_regs.ctrl1000;
-			break;
-		case MII_STAT1000:
-			data->val_out = adapter->phy_regs.stat1000;
-			break;
-		case MII_ESTATUS:
-			data->val_out = adapter->phy_regs.estatus;
-			break;
-		default:
-			return -EIO;
-		}
-		break;
-	case SIOCSMIIREG:
-	default:
-		return -EOPNOTSUPP;
-	}
-	return 0;
-}
-
-/**
- * e1000e_hwtstamp_ioctl - control hardware time stamping
- * @netdev: network interface device structure
- * @ifreq: interface request
- *
- * Outgoing time stamping can be enabled and disabled. Play nice and
- * disable it when requested, although it shouldn't cause any overhead
- * when no packet needs it. At most one packet in the queue may be
- * marked for time stamping, otherwise it would be impossible to tell
- * for sure to which packet the hardware time stamp belongs.
- *
- * Incoming time stamping has to be configured via the hardware filters.
- * Not all combinations are supported, in particular event type has to be
- * specified. Matching the kind of event packet is not supported, with the
- * exception of "all V2 events regardless of level 2 or 4".
- **/
-static int e1000e_hwtstamp_set(struct net_device *netdev, struct ifreq *ifr)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct hwtstamp_config config;
-	int ret_val;
-
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	ret_val = e1000e_config_hwtstamp(adapter, &config);
-	if (ret_val)
-		return ret_val;
-
-	switch (config.rx_filter) {
-	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
-	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
-	case HWTSTAMP_FILTER_PTP_V2_SYNC:
-	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
-	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
-	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		/* With V2 type filters which specify a Sync or Delay Request,
-		 * Path Delay Request/Response messages are also time stamped
-		 * by hardware so notify the caller the requested packets plus
-		 * some others are time stamped.
-		 */
-		config.rx_filter = HWTSTAMP_FILTER_SOME;
-		break;
-	default:
-		break;
-	}
-
-	return copy_to_user(ifr->ifr_data, &config,
-			    sizeof(config)) ? -EFAULT : 0;
-}
-
-static int e1000e_hwtstamp_get(struct net_device *netdev, struct ifreq *ifr)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-
-	return copy_to_user(ifr->ifr_data, &adapter->hwtstamp_config,
-			    sizeof(adapter->hwtstamp_config)) ? -EFAULT : 0;
-}
-
-static int e1000_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
-{
-	switch (cmd) {
-	case SIOCGMIIPHY:
-	case SIOCGMIIREG:
-	case SIOCSMIIREG:
-		return e1000_mii_ioctl(netdev, ifr, cmd);
-	case SIOCSHWTSTAMP:
-		return e1000e_hwtstamp_set(netdev, ifr);
-	case SIOCGHWTSTAMP:
-		return e1000e_hwtstamp_get(netdev, ifr);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
 
 
 
@@ -6296,70 +6046,6 @@ static void e1000e_disable_aspm(struct pci_dev *pdev, u16 state)
 
 
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-
-static irqreturn_t e1000_intr_msix(int __always_unused irq, void *data)
-{
-	struct net_device *netdev = data;
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-
-	if (adapter->msix_entries) {
-		int vector, msix_irq;
-
-		vector = 0;
-		msix_irq = adapter->msix_entries[vector].vector;
-		if (disable_hardirq(msix_irq))
-			e1000_intr_msix_rx(msix_irq, netdev);
-		enable_irq(msix_irq);
-
-		vector++;
-		msix_irq = adapter->msix_entries[vector].vector;
-		if (disable_hardirq(msix_irq))
-			e1000_intr_msix_tx(msix_irq, netdev);
-		enable_irq(msix_irq);
-
-		vector++;
-		msix_irq = adapter->msix_entries[vector].vector;
-		if (disable_hardirq(msix_irq))
-			e1000_msix_other(msix_irq, netdev);
-		enable_irq(msix_irq);
-	}
-
-	return IRQ_HANDLED;
-}
-
-/**
- * e1000_netpoll
- * @netdev: network interface device structure
- *
- * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
- * the interrupt routine is executing.
- */
-static void e1000_netpoll(struct net_device *netdev)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-
-	switch (adapter->int_mode) {
-	case E1000E_INT_MODE_MSIX:
-		e1000_intr_msix(adapter->pdev->irq, netdev);
-		break;
-	case E1000E_INT_MODE_MSI:
-		if (disable_hardirq(adapter->pdev->irq))
-			e1000_intr_msi(adapter->pdev->irq, netdev);
-		enable_irq(adapter->pdev->irq);
-		break;
-	default:		/* E1000E_INT_MODE_LEGACY */
-		if (disable_hardirq(adapter->pdev->irq))
-			e1000_intr(adapter->pdev->irq, netdev);
-		enable_irq(adapter->pdev->irq);
-		break;
-	}
-}
-#endif
-
-
-
 static void e1000_print_device_info(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
@@ -6402,64 +6088,6 @@ static void e1000_eeprom_checks(struct e1000_adapter *adapter)
 	}
 }
 
-static netdev_features_t e1000_fix_features(struct net_device *netdev,
-					    netdev_features_t features)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_hw *hw = &adapter->hw;
-
-	/* Jumbo frame workaround on 82579 and newer requires CRC be stripped */
-	if ((hw->mac.type >= e1000_pch2lan) && (netdev->mtu > ETH_DATA_LEN))
-		features &= ~NETIF_F_RXFCS;
-
-	/* Since there is no support for separate Rx/Tx vlan accel
-	 * enable/disable make sure Tx flag is always in same state as Rx.
-	 */
-	if (features & NETIF_F_HW_VLAN_CTAG_RX)
-		features |= NETIF_F_HW_VLAN_CTAG_TX;
-	else
-		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
-
-	return features;
-}
-
-static int e1000_set_features(struct net_device *netdev,
-			      netdev_features_t features)
-{
-	struct e1000_adapter *adapter = netdev_priv(netdev);
-	netdev_features_t changed = features ^ netdev->features;
-
-	if (changed & (NETIF_F_TSO | NETIF_F_TSO6))
-		adapter->flags |= FLAG_TSO_FORCE;
-
-	if (!(changed & (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_TX |
-			 NETIF_F_RXCSUM | NETIF_F_RXHASH | NETIF_F_RXFCS |
-			 NETIF_F_RXALL)))
-		return 0;
-
-	if (changed & NETIF_F_RXFCS) {
-		if (features & NETIF_F_RXFCS) {
-			adapter->flags2 &= ~FLAG2_CRC_STRIPPING;
-		} else {
-			/* We need to take it back to defaults, which might mean
-			 * stripping is still disabled at the adapter level.
-			 */
-			if (adapter->flags2 & FLAG2_DFLT_CRC_STRIPPING)
-				adapter->flags2 |= FLAG2_CRC_STRIPPING;
-			else
-				adapter->flags2 &= ~FLAG2_CRC_STRIPPING;
-		}
-	}
-
-	netdev->features = features;
-
-	if (netif_running(netdev))
-		e1000e_reinit_locked(adapter);
-	else
-		e1000e_reset(adapter);
-
-	return 0;
-}
 
 static const struct net_device_ops e1000e_netdev_ops = {
 	.ndo_open		= e1000e_open,
@@ -6475,6 +6103,7 @@ static const struct net_device_ops e1000e_netdev_ops = {
 
 	.ndo_vlan_rx_add_vid	= e1000_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= e1000_vlan_rx_kill_vid,
+
 //#ifdef CONFIG_NET_POLL_CONTROLLER
 //	.ndo_poll_controller	= e1000_netpoll,
 //#endif
