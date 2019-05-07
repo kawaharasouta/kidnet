@@ -6101,8 +6101,8 @@ static const struct net_device_ops e1000e_netdev_ops = {
 //	.ndo_tx_timeout		= e1000_tx_timeout,
 //	.ndo_validate_addr	= eth_validate_addr,
 
-	.ndo_vlan_rx_add_vid	= e1000_vlan_rx_add_vid,
-	.ndo_vlan_rx_kill_vid	= e1000_vlan_rx_kill_vid,
+//	.ndo_vlan_rx_add_vid	= e1000_vlan_rx_add_vid,
+//	.ndo_vlan_rx_kill_vid	= e1000_vlan_rx_kill_vid,
 
 //#ifdef CONFIG_NET_POLL_CONTROLLER
 //	.ndo_poll_controller	= e1000_netpoll,
@@ -6285,8 +6285,8 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
 	netdev->hw_features |= NETIF_F_RXALL;
 
-	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER)
-		netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+//	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER)
+//		netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	netdev->vlan_features |= (NETIF_F_SG |
 				  NETIF_F_TSO |
