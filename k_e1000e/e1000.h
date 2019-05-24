@@ -505,11 +505,11 @@ void e1000e_write_itr(struct e1000_adapter *adapter, u32 itr);
 
 extern unsigned int copybreak;
 
-extern const struct e1000_info e1000_82571_info;
-extern const struct e1000_info e1000_82572_info;
-extern const struct e1000_info e1000_82573_info;
+//extern const struct e1000_info e1000_82571_info;
+//extern const struct e1000_info e1000_82572_info;
+//extern const struct e1000_info e1000_82573_info;
 extern const struct e1000_info e1000_82574_info;
-extern const struct e1000_info e1000_82583_info;
+//extern const struct e1000_info e1000_82583_info;
 extern const struct e1000_info e1000_ich8_info;
 extern const struct e1000_info e1000_ich9_info;
 extern const struct e1000_info e1000_ich10_info;

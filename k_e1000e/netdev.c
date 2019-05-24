@@ -58,20 +58,20 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 static const struct e1000_info *e1000_info_tbl[] = {
-	[board_82571]		= &e1000_82571_info,
-	[board_82572]		= &e1000_82572_info,
-	[board_82573]		= &e1000_82573_info,
+	//[board_82571]		= &e1000_82571_info,
+	//[board_82572]		= &e1000_82572_info,
+	//[board_82573]		= &e1000_82573_info,
 	[board_82574]		= &e1000_82574_info,
-	[board_82583]		= &e1000_82583_info,
-	[board_80003es2lan]	= &e1000_es2_info,
-	[board_ich8lan]		= &e1000_ich8_info,
-	[board_ich9lan]		= &e1000_ich9_info,
-	[board_ich10lan]	= &e1000_ich10_info,
-	[board_pchlan]		= &e1000_pch_info,
-	[board_pch2lan]		= &e1000_pch2_info,
-	[board_pch_lpt]		= &e1000_pch_lpt_info,
-	[board_pch_spt]		= &e1000_pch_spt_info,
-	[board_pch_cnp]		= &e1000_pch_cnp_info,
+	//[board_82583]		= &e1000_82583_info,
+	//[board_80003es2lan]	= &e1000_es2_info,
+	//[board_ich8lan]		= &e1000_ich8_info,
+	//[board_ich9lan]		= &e1000_ich9_info,
+	//[board_ich10lan]	= &e1000_ich10_info,
+	//[board_pchlan]		= &e1000_pch_info,
+	//[board_pch2lan]		= &e1000_pch2_info,
+	//[board_pch_lpt]		= &e1000_pch_lpt_info,
+	//[board_pch_spt]		= &e1000_pch_spt_info,
+	//[board_pch_cnp]		= &e1000_pch_cnp_info,
 };
 
 struct e1000_reg_info {
@@ -6133,47 +6133,55 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	resource_size_t flash_start, flash_len;
 	static int cards_found;
 	u16 aspm_disable_flag = 0;
-	int bars, i, err, pci_using_dac;
+	int bars, i, err/*, pci_using_dac*/;
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
 	s32 ret_val = 0;
 
-	if (ei->flags2 & FLAG2_DISABLE_ASPM_L0S)
-		aspm_disable_flag = PCIE_LINK_STATE_L0S;
-	if (ei->flags2 & FLAG2_DISABLE_ASPM_L1)
-		aspm_disable_flag |= PCIE_LINK_STATE_L1;
-	if (aspm_disable_flag)
-		e1000e_disable_aspm(pdev, aspm_disable_flag);
+	//! Active-State Power Management(ASPM) setting
+	//if (ei->flags2 & FLAG2_DISABLE_ASPM_L0S)
+	//	aspm_disable_flag = PCIE_LINK_STATE_L0S;
+	//if (ei->flags2 & FLAG2_DISABLE_ASPM_L1)
+	//	aspm_disable_flag |= PCIE_LINK_STATE_L1;
+	//if (aspm_disable_flag)
+	//	e1000e_disable_aspm(pdev, aspm_disable_flag);
+	
+	//e1000e_disable_aspm(pdev, aspm_disable_flag);
 
+	//!need!!
 	err = pci_enable_device_mem(pdev);
 	if (err)
 		return err;
 
-	pci_using_dac = 0;
-	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	if (!err) {
-		pci_using_dac = 1;
-	} else {
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev,
-				"No usable DMA configuration, aborting\n");
-			goto err_dma;
-		}
-	}
+	//pci_using_dac = 0;
+	//err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	//if (!err) {
+	//	pci_using_dac = 1;
+	//} else {
+	//	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	//	if (err) {
+	//		dev_err(&pdev->dev,
+	//			"No usable DMA configuration, aborting\n");
+	//		goto err_dma;
+	//	}
+	//}
 
+	//without this 
+	//"Trying to free nonexistent resource" on dmesg
 	bars = pci_select_bars(pdev, IORESOURCE_MEM);
 	err = pci_request_selected_regions_exclusive(pdev, bars,
 						     e1000e_driver_name);
+	
 	if (err)
 		goto err_pci_reg;
 
 	/* AER (Advanced Error Reporting) hooks */
-	pci_enable_pcie_error_reporting(pdev);
+	//pci_enable_pcie_error_reporting(pdev);
 
-	pci_set_master(pdev);
+	//pci_set_master(pdev);
+
 	/* PCI config space info */
-	err = pci_save_state(pdev);
+	//err = pci_save_state(pdev);
 	if (err)
 		goto err_alloc_etherdev;
 
@@ -6182,6 +6190,8 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!netdev)
 		goto err_alloc_etherdev;
 
+	//((net)->dev.parent = (pdev))
+	// net->dev is struct device
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	netdev->irq = pdev->irq;
@@ -6200,23 +6210,23 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->max_hw_frame_size = ei->max_hw_frame_size;
 	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
+	// related memory mapd io
 	mmio_start = pci_resource_start(pdev, 0);
 	mmio_len = pci_resource_len(pdev, 0);
-
 	err = -EIO;
 	adapter->hw.hw_addr = ioremap(mmio_start, mmio_len);
 	if (!adapter->hw.hw_addr)
 		goto err_ioremap;
 
-	if ((adapter->flags & FLAG_HAS_FLASH) &&
-	    (pci_resource_flags(pdev, 1) & IORESOURCE_MEM) &&
-	    (hw->mac.type < e1000_pch_spt)) {
-		flash_start = pci_resource_start(pdev, 1);
-		flash_len = pci_resource_len(pdev, 1);
-		adapter->hw.flash_address = ioremap(flash_start, flash_len);
-		if (!adapter->hw.flash_address)
-			goto err_flashmap;
-	}
+	//if ((adapter->flags & FLAG_HAS_FLASH) &&
+	//    (pci_resource_flags(pdev, 1) & IORESOURCE_MEM) &&
+	//    (hw->mac.type < e1000_pch_spt)) {
+	//	flash_start = pci_resource_start(pdev, 1);
+	//	flash_len = pci_resource_len(pdev, 1);
+	//	adapter->hw.flash_address = ioremap(flash_start, flash_len);
+	//	if (!adapter->hw.flash_address)
+	//		goto err_flashmap;
+	//}
 
 	/* Set default EEE advertisement */
 	if (adapter->flags2 & FLAG2_HAS_EEE)
@@ -6288,17 +6298,17 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 //	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER)
 //		netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
-	netdev->vlan_features |= (NETIF_F_SG |
-				  NETIF_F_TSO |
-				  NETIF_F_TSO6 |
-				  NETIF_F_HW_CSUM);
+//	netdev->vlan_features |= (NETIF_F_SG |
+//				  NETIF_F_TSO |
+//				  NETIF_F_TSO6 |
+//				  NETIF_F_HW_CSUM);
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
-	if (pci_using_dac) {
-		netdev->features |= NETIF_F_HIGHDMA;
-		netdev->vlan_features |= NETIF_F_HIGHDMA;
-	}
+	//if (pci_using_dac) {
+	//	netdev->features |= NETIF_F_HIGHDMA;
+	//	netdev->vlan_features |= NETIF_F_HIGHDMA;
+	//}
 
 	/* MTU range: 68 - max_hw_frame_size */
 	netdev->min_mtu = ETH_MIN_MTU;

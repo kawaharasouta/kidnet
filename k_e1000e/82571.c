@@ -1960,80 +1960,82 @@ static const struct e1000_nvm_operations e82571_nvm_ops = {
 	.write			= e1000_write_nvm_82571,
 };
 
-const struct e1000_info e1000_82571_info = {
-	.mac			= e1000_82571,
-	.flags			= FLAG_HAS_HW_VLAN_FILTER
-				  | FLAG_HAS_JUMBO_FRAMES
-				  | FLAG_HAS_WOL
-				  | FLAG_APME_IN_CTRL3
-				  | FLAG_HAS_CTRLEXT_ON_LOAD
-				  | FLAG_HAS_SMART_POWER_DOWN
-				  | FLAG_RESET_OVERWRITES_LAA /* errata */
-				  | FLAG_TARC_SPEED_MODE_BIT /* errata */
-				  | FLAG_APME_CHECK_PORT_B,
-	.flags2			= FLAG2_DISABLE_ASPM_L1 /* errata 13 */
-				  | FLAG2_DMA_BURST,
-	.pba			= 38,
-	.max_hw_frame_size	= DEFAULT_JUMBO,
-	.get_variants		= e1000_get_variants_82571,
-	.mac_ops		= &e82571_mac_ops,
-	.phy_ops		= &e82_phy_ops_igp,
-	.nvm_ops		= &e82571_nvm_ops,
-};
+//const struct e1000_info e1000_82571_info = {
+//	.mac			= e1000_82571,
+//	.flags			= FLAG_HAS_HW_VLAN_FILTER
+//				  | FLAG_HAS_JUMBO_FRAMES
+//				  | FLAG_HAS_WOL
+//				  | FLAG_APME_IN_CTRL3
+//				  | FLAG_HAS_CTRLEXT_ON_LOAD
+//				  | FLAG_HAS_SMART_POWER_DOWN
+//				  | FLAG_RESET_OVERWRITES_LAA /* errata */
+//				  | FLAG_TARC_SPEED_MODE_BIT /* errata */
+//				  | FLAG_APME_CHECK_PORT_B,
+//	.flags2			= FLAG2_DISABLE_ASPM_L1 /* errata 13 */
+//				  | FLAG2_DMA_BURST,
+//	.pba			= 38,
+//	.max_hw_frame_size	= DEFAULT_JUMBO,
+//	.get_variants		= e1000_get_variants_82571,
+//	.mac_ops		= &e82571_mac_ops,
+//	.phy_ops		= &e82_phy_ops_igp,
+//	.nvm_ops		= &e82571_nvm_ops,
+//};
 
-const struct e1000_info e1000_82572_info = {
-	.mac			= e1000_82572,
-	.flags			= FLAG_HAS_HW_VLAN_FILTER
-				  | FLAG_HAS_JUMBO_FRAMES
-				  | FLAG_HAS_WOL
-				  | FLAG_APME_IN_CTRL3
-				  | FLAG_HAS_CTRLEXT_ON_LOAD
-				  | FLAG_TARC_SPEED_MODE_BIT, /* errata */
-	.flags2			= FLAG2_DISABLE_ASPM_L1 /* errata 13 */
-				  | FLAG2_DMA_BURST,
-	.pba			= 38,
-	.max_hw_frame_size	= DEFAULT_JUMBO,
-	.get_variants		= e1000_get_variants_82571,
-	.mac_ops		= &e82571_mac_ops,
-	.phy_ops		= &e82_phy_ops_igp,
-	.nvm_ops		= &e82571_nvm_ops,
-};
+//const struct e1000_info e1000_82572_info = {
+//	.mac			= e1000_82572,
+//	.flags			= FLAG_HAS_HW_VLAN_FILTER
+//				  | FLAG_HAS_JUMBO_FRAMES
+//				  | FLAG_HAS_WOL
+//				  | FLAG_APME_IN_CTRL3
+//				  | FLAG_HAS_CTRLEXT_ON_LOAD
+//				  | FLAG_TARC_SPEED_MODE_BIT, /* errata */
+//	.flags2			= FLAG2_DISABLE_ASPM_L1 /* errata 13 */
+//				  | FLAG2_DMA_BURST,
+//	.pba			= 38,
+//	.max_hw_frame_size	= DEFAULT_JUMBO,
+//	.get_variants		= e1000_get_variants_82571,
+//	.mac_ops		= &e82571_mac_ops,
+//	.phy_ops		= &e82_phy_ops_igp,
+//	.nvm_ops		= &e82571_nvm_ops,
+//};
 
-const struct e1000_info e1000_82573_info = {
-	.mac			= e1000_82573,
-	.flags			= FLAG_HAS_HW_VLAN_FILTER
-				  | FLAG_HAS_WOL
-				  | FLAG_APME_IN_CTRL3
-				  | FLAG_HAS_SMART_POWER_DOWN
-				  | FLAG_HAS_AMT
-				  | FLAG_HAS_SWSM_ON_LOAD,
-	.flags2			= FLAG2_DISABLE_ASPM_L1
-				  | FLAG2_DISABLE_ASPM_L0S,
-	.pba			= 20,
-	.max_hw_frame_size	= VLAN_ETH_FRAME_LEN + ETH_FCS_LEN,
-	.get_variants		= e1000_get_variants_82571,
-	.mac_ops		= &e82571_mac_ops,
-	.phy_ops		= &e82_phy_ops_m88,
-	.nvm_ops		= &e82571_nvm_ops,
-};
+//const struct e1000_info e1000_82573_info = {
+//	.mac			= e1000_82573,
+//	.flags			= FLAG_HAS_HW_VLAN_FILTER
+//				  | FLAG_HAS_WOL
+//				  | FLAG_APME_IN_CTRL3
+//				  | FLAG_HAS_SMART_POWER_DOWN
+//				  | FLAG_HAS_AMT
+//				  | FLAG_HAS_SWSM_ON_LOAD,
+//	.flags2			= FLAG2_DISABLE_ASPM_L1
+//				  | FLAG2_DISABLE_ASPM_L0S,
+//	.pba			= 20,
+//	.max_hw_frame_size	= VLAN_ETH_FRAME_LEN + ETH_FCS_LEN,
+//	.get_variants		= e1000_get_variants_82571,
+//	.mac_ops		= &e82571_mac_ops,
+//	.phy_ops		= &e82_phy_ops_m88,
+//	.nvm_ops		= &e82571_nvm_ops,
+//};
 
 const struct e1000_info e1000_82574_info = {
 	.mac			= e1000_82574,
-	.flags			= FLAG_HAS_HW_VLAN_FILTER
-				  | FLAG_HAS_MSIX
-				  | FLAG_HAS_JUMBO_FRAMES
-				  | FLAG_HAS_WOL
-				  | FLAG_HAS_HW_TIMESTAMP
-				  | FLAG_APME_IN_CTRL3
-				  | FLAG_HAS_SMART_POWER_DOWN
-				  | FLAG_HAS_AMT
-				  | FLAG_HAS_CTRLEXT_ON_LOAD,
-	.flags2			 = FLAG2_CHECK_PHY_HANG
-				  | FLAG2_DISABLE_ASPM_L0S
-				  | FLAG2_DISABLE_ASPM_L1
-				  | FLAG2_NO_DISABLE_RX
-				  | FLAG2_DMA_BURST
-				  | FLAG2_CHECK_SYSTIM_OVERFLOW,
+	//.flags			= FLAG_HAS_HW_VLAN_FILTER
+	//			  | FLAG_HAS_MSIX
+	//			  | FLAG_HAS_JUMBO_FRAMES
+	//			  | FLAG_HAS_WOL
+	//			  | FLAG_HAS_HW_TIMESTAMP
+	//			  | FLAG_APME_IN_CTRL3
+	//			  | FLAG_HAS_SMART_POWER_DOWN
+	//			  | FLAG_HAS_AMT
+	//			  | FLAG_HAS_CTRLEXT_ON_LOAD,
+	//.flags2			 = FLAG2_CHECK_PHY_HANG
+	//			  | FLAG2_DISABLE_ASPM_L0S
+	//			  | FLAG2_DISABLE_ASPM_L1
+	//			  | FLAG2_NO_DISABLE_RX
+	//			  | FLAG2_DMA_BURST
+	//			  | FLAG2_CHECK_SYSTIM_OVERFLOW,
+	.flags		= 0,
+	.flags2		= 0,
 	.pba			= 32,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
@@ -2042,24 +2044,24 @@ const struct e1000_info e1000_82574_info = {
 	.nvm_ops		= &e82571_nvm_ops,
 };
 
-const struct e1000_info e1000_82583_info = {
-	.mac			= e1000_82583,
-	.flags			= FLAG_HAS_HW_VLAN_FILTER
-				  | FLAG_HAS_WOL
-				  | FLAG_HAS_HW_TIMESTAMP
-				  | FLAG_APME_IN_CTRL3
-				  | FLAG_HAS_SMART_POWER_DOWN
-				  | FLAG_HAS_AMT
-				  | FLAG_HAS_JUMBO_FRAMES
-				  | FLAG_HAS_CTRLEXT_ON_LOAD,
-	.flags2			= FLAG2_DISABLE_ASPM_L0S
-				  | FLAG2_DISABLE_ASPM_L1
-				  | FLAG2_NO_DISABLE_RX
-				  | FLAG2_CHECK_SYSTIM_OVERFLOW,
-	.pba			= 32,
-	.max_hw_frame_size	= DEFAULT_JUMBO,
-	.get_variants		= e1000_get_variants_82571,
-	.mac_ops		= &e82571_mac_ops,
-	.phy_ops		= &e82_phy_ops_bm,
-	.nvm_ops		= &e82571_nvm_ops,
-};
+//const struct e1000_info e1000_82583_info = {
+//	.mac			= e1000_82583,
+//	.flags			= FLAG_HAS_HW_VLAN_FILTER
+//				  | FLAG_HAS_WOL
+//				  | FLAG_HAS_HW_TIMESTAMP
+//				  | FLAG_APME_IN_CTRL3
+//				  | FLAG_HAS_SMART_POWER_DOWN
+//				  | FLAG_HAS_AMT
+//				  | FLAG_HAS_JUMBO_FRAMES
+//				  | FLAG_HAS_CTRLEXT_ON_LOAD,
+//	.flags2			= FLAG2_DISABLE_ASPM_L0S
+//				  | FLAG2_DISABLE_ASPM_L1
+//				  | FLAG2_NO_DISABLE_RX
+//				  | FLAG2_CHECK_SYSTIM_OVERFLOW,
+//	.pba			= 32,
+//	.max_hw_frame_size	= DEFAULT_JUMBO,
+//	.get_variants		= e1000_get_variants_82571,
+//	.mac_ops		= &e82571_mac_ops,
+//	.phy_ops		= &e82_phy_ops_bm,
+//	.nvm_ops		= &e82571_nvm_ops,
+//};
