@@ -6178,7 +6178,7 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* AER (Advanced Error Reporting) hooks */
 	//pci_enable_pcie_error_reporting(pdev);
 
-	//pci_set_master(pdev);
+	pci_set_master(pdev);
 
 	/* PCI config space info */
 	//err = pci_save_state(pdev);
