@@ -6070,23 +6070,6 @@ static void e1000_print_device_info(struct e1000_adapter *adapter)
 	       hw->mac.type, hw->phy.type, pba_str);
 }
 
-static void e1000_eeprom_checks(struct e1000_adapter *adapter)
-{
-	struct e1000_hw *hw = &adapter->hw;
-	int ret_val;
-	u16 buf = 0;
-
-	if (hw->mac.type != e1000_82573)
-		return;
-
-	ret_val = e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &buf);
-	le16_to_cpus(&buf);
-	if (!ret_val && (!(buf & BIT(0)))) {
-		/* Deep Smart Power Down (DSPD) */
-		dev_warn(&adapter->pdev->dev,
-			 "Warning: detected DSPD enabled in EEPROM\n");
-	}
-}
 
 
 static const struct net_device_ops e1000e_netdev_ops = {
@@ -6130,43 +6113,16 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct e1000_hw *hw;
 	const struct e1000_info *ei = e1000_info_tbl[ent->driver_data];
 	resource_size_t mmio_start, mmio_len;
-	resource_size_t flash_start, flash_len;
 	static int cards_found;
 	u16 aspm_disable_flag = 0;
 	int bars, i, err/*, pci_using_dac*/;
-	u16 eeprom_data = 0;
-	u16 eeprom_apme_mask = E1000_EEPROM_APME;
-	s32 ret_val = 0;
 
-	//! Active-State Power Management(ASPM) setting
-	//if (ei->flags2 & FLAG2_DISABLE_ASPM_L0S)
-	//	aspm_disable_flag = PCIE_LINK_STATE_L0S;
-	//if (ei->flags2 & FLAG2_DISABLE_ASPM_L1)
-	//	aspm_disable_flag |= PCIE_LINK_STATE_L1;
-	//if (aspm_disable_flag)
-	//	e1000e_disable_aspm(pdev, aspm_disable_flag);
-	
 	e1000e_disable_aspm(pdev, aspm_disable_flag);
 
-	//!need!!
 	err = pci_enable_device_mem(pdev);
 	if (err)
 		return err;
 
-	//pci_using_dac = 0;
-	//err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	//if (!err) {
-	//	pci_using_dac = 1;
-	//} else {
-	//	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	//	if (err) {
-	//		dev_err(&pdev->dev,
-	//			"No usable DMA configuration, aborting\n");
-	//		goto err_dma;
-	//	}
-	//}
-
-	//without this 
 	//"Trying to free nonexistent resource" on dmesg
 	bars = pci_select_bars(pdev, IORESOURCE_MEM);
 	err = pci_request_selected_regions_exclusive(pdev, bars,
@@ -6175,23 +6131,13 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_pci_reg;
 
-	/* AER (Advanced Error Reporting) hooks */
-	//pci_enable_pcie_error_reporting(pdev);
-
 	pci_set_master(pdev);
-
-	/* PCI config space info */
-	//err = pci_save_state(pdev);
-	if (err)
-		goto err_alloc_etherdev;
 
 	err = -ENOMEM;
 	netdev = alloc_etherdev(sizeof(struct e1000_adapter));
 	if (!netdev)
 		goto err_alloc_etherdev;
 
-	//((net)->dev.parent = (pdev))
-	// net->dev is struct device
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	netdev->irq = pdev->irq;
@@ -6217,20 +6163,6 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->hw.hw_addr = ioremap(mmio_start, mmio_len);
 	if (!adapter->hw.hw_addr)
 		goto err_ioremap;
-
-	//if ((adapter->flags & FLAG_HAS_FLASH) &&
-	//    (pci_resource_flags(pdev, 1) & IORESOURCE_MEM) &&
-	//    (hw->mac.type < e1000_pch_spt)) {
-	//	flash_start = pci_resource_start(pdev, 1);
-	//	flash_len = pci_resource_len(pdev, 1);
-	//	adapter->hw.flash_address = ioremap(flash_start, flash_len);
-	//	if (!adapter->hw.flash_address)
-	//		goto err_flashmap;
-	//}
-
-	/* Set default EEE advertisement */
-	//if (adapter->flags2 & FLAG2_HAS_EEE)
-	//	adapter->eee_advert = MDIO_EEE_100TX | MDIO_EEE_1000T;
 
 	/* construct the net_device struct */
 	netdev->netdev_ops = &e1000e_netdev_ops;
@@ -6258,11 +6190,6 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = ei->get_variants(adapter);
 	if (err)
 		goto err_hw_init;
-
-	//if ((adapter->flags & FLAG_IS_ICH) &&
-	//    (adapter->flags & FLAG_READ_ONLY_NVM) &&
-	//    (hw->mac.type < e1000_pch_spt))
-	//	e1000e_write_protect_nvm_ich8lan(&adapter->hw);
 
 	hw->mac.ops.get_bus_info(&adapter->hw);
 
@@ -6295,28 +6222,14 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
 	netdev->hw_features |= NETIF_F_RXALL;
 
-//	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER)
-//		netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
-
-//	netdev->vlan_features |= (NETIF_F_SG |
-//				  NETIF_F_TSO |
-//				  NETIF_F_TSO6 |
-//				  NETIF_F_HW_CSUM);
-
-	//netdev->priv_flags |= IFF_UNICAST_FLT;
-
-	//if (pci_using_dac) {
-	//	netdev->features |= NETIF_F_HIGHDMA;
-	//	netdev->vlan_features |= NETIF_F_HIGHDMA;
-	//}
 
 	/* MTU range: 68 - max_hw_frame_size */
 	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = adapter->max_hw_frame_size -
 			  (VLAN_ETH_HLEN + ETH_FCS_LEN);
 
-	if (e1000e_enable_mng_pass_thru(&adapter->hw))
-		adapter->flags |= FLAG_MNG_PT_ENABLED;
+	//if (e1000e_enable_mng_pass_thru(&adapter->hw))
+	//	adapter->flags |= FLAG_MNG_PT_ENABLED;
 
 	/* before reading the NVM, reset the controller to
 	 * put the device in a known good starting state
@@ -6336,8 +6249,6 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	e1000_eeprom_checks(adapter);
-
 	/* copy the MAC address */
 	if (e1000e_read_mac_addr(&adapter->hw))
 		dev_err(&pdev->dev,
@@ -6351,13 +6262,13 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	timer_setup(&adapter->watchdog_timer, e1000_watchdog, 0);
-	timer_setup(&adapter->phy_info_timer, e1000_update_phy_info, 0);
+	//timer_setup(&adapter->phy_info_timer, e1000_update_phy_info, 0);
 
-	INIT_WORK(&adapter->reset_task, e1000_reset_task);
+	//INIT_WORK(&adapter->reset_task, e1000_reset_task);
 	INIT_WORK(&adapter->watchdog_task, e1000_watchdog_task);
 	INIT_WORK(&adapter->downshift_task, e1000e_downshift_workaround);
-	INIT_WORK(&adapter->update_phy_task, e1000e_update_phy_task);
-	INIT_WORK(&adapter->print_hang_task, e1000_print_hw_hang);
+	//INIT_WORK(&adapter->update_phy_task, e1000e_update_phy_task);
+	//INIT_WORK(&adapter->print_hang_task, e1000_print_hw_hang);
 
 	/* Initialize link parameters. User can change them with ethtool */
 	adapter->hw.mac.autoneg = 1;
@@ -6366,58 +6277,11 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->hw.fc.current_mode = e1000_fc_default;
 	adapter->hw.phy.autoneg_advertised = 0x2f;
 
-	/* Initial Wake on LAN setting - If APM wake is enabled in
-	 * the EEPROM, enable the ACPI Magic Packet filter
-	 */
-	//if (adapter->flags & FLAG_APME_IN_WUC) {
-	//	/* APME bit in EEPROM is mapped to WUC.APME */
-	//	eeprom_data = er32(WUC);
-	//	eeprom_apme_mask = E1000_WUC_APME;
-	//	if ((hw->mac.type > e1000_ich10lan) &&
-	//	    (eeprom_data & E1000_WUC_PHY_WAKE))
-	//		adapter->flags2 |= FLAG2_HAS_PHY_WAKEUP;
-	//} else if (adapter->flags & FLAG_APME_IN_CTRL3) {
-	//	if (adapter->flags & FLAG_APME_CHECK_PORT_B &&
-	//	    (adapter->hw.bus.func == 1))
-	//		ret_val = e1000_read_nvm(&adapter->hw,
-	//				      NVM_INIT_CONTROL3_PORT_B,
-	//				      1, &eeprom_data);
-	//	else
-	//		ret_val = e1000_read_nvm(&adapter->hw,
-	//				      NVM_INIT_CONTROL3_PORT_A,
-	//				      1, &eeprom_data);
-	//}
-
+	
 	//! eeprom: Nonvolatile memory that stores data that should be held even when the power is turned off with electronic devices
 	/* fetch WoL from EEPROM */
-	//if (ret_val)
-	//	e_dbg("NVM read error getting WoL initial values: %d\n", ret_val);
-	//else if (eeprom_data & eeprom_apme_mask)
-	//	adapter->eeprom_wol |= E1000_WUFC_MAG;
-
-	/* now that we have the eeprom settings, apply the special cases
-	 * where the eeprom may be wrong or the board simply won't support
-	 * wake on lan on a particular port
-	 */
-	//if (!(adapter->flags & FLAG_HAS_WOL))
-	//	adapter->eeprom_wol = 0;
-
-	/* initialize the wol settings based on the eeprom settings */
-	//adapter->wol = adapter->eeprom_wol;
-
-	/* make sure adapter isn't asleep if manageability is enabled */
-	//if (adapter->wol || (adapter->flags & FLAG_MNG_PT_ENABLED) ||
-	//    (hw->mac.ops.check_mng_mode(hw)))
-	//	device_wakeup_enable(&pdev->dev);
-
-	/* save off EEPROM version number */
-	//ret_val = e1000_read_nvm(&adapter->hw, 5, 1, &adapter->eeprom_vers);
-
-	//if (ret_val) {
-	//	e_dbg("NVM read error getting EEPROM version: %d\n", ret_val);
-	//	adapter->eeprom_vers = 0;
-	//}
-
+	
+	
 	/* init PTP hardware clock */
 	e1000e_ptp_init(adapter);
 
@@ -6428,9 +6292,6 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * is up.  For all other cases, let the f/w know that the h/w is now
 	 * under the control of the driver.
 	 */
-	//if (!(adapter->flags & FLAG_HAS_AMT))
-	//	e1000e_get_hw_control(adapter);
-
 
 	strlcpy(netdev->name, "eth%d", sizeof(netdev->name));
 	err = register_netdev(netdev);
@@ -6461,15 +6322,11 @@ err_sw_init:
 	if ((adapter->hw.flash_address) && (hw->mac.type < e1000_pch_spt))
 		iounmap(adapter->hw.flash_address);
 	e1000e_reset_interrupt_capability(adapter);
-err_flashmap:
-	iounmap(adapter->hw.hw_addr);
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
 	pci_release_mem_regions(pdev);
 err_pci_reg:
-err_dma:
-	pci_disable_device(pdev);
 	return err;
 }
 
