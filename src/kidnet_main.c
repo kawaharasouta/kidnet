@@ -52,6 +52,11 @@ static const struct net_device_ops kidnet_ops = {
 };
 
 
+void kidnet_set_macaddr(struct net_device *netdev) {
+	
+}
+
+
 static int 
 kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 	int ret;
@@ -124,7 +129,7 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 
-//	//!mmio setting
+	//!mmio setting
 	printk(KERN_INFO "%s pci_resource_start.\n", kidnet_msg);
 	mmio_start = pci_resource_start(pdev, bars);
 	mmio_len	= pci_resource_len(pdev, bars);
@@ -135,6 +140,9 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 		goto err_ioremap;
 
 	netdev->netdev_ops = &kidnet_ops;
+
+	//!set mac addr
+	kidnet_set_macaddr(netdev);
 
 	printk(KERN_INFO "%s register_netdev.\n", kidnet_msg);
 	ret = register_netdev(netdev);	
