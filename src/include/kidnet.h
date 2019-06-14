@@ -6,17 +6,17 @@
 				PCI_DEVICE(PCI_VENDOR_ID_INTEL, device_id)}
 
 
-#define kidnet_write(func, pdev, reg, val) \
-	func(val, (uint8_t *)(((struct kidnet_adapter *)netdev_priv(pdev)))->mmio_addr + reg)
-#define kidnet_writeb(pdev, reg, val) kidnet_write(writeb, pdev, reg, val)
-#define kidnet_writew(pdev, reg, val) kidnet_write(writew, pdev, reg, val)
-#define kidnet_writel(pdev, reg, val) kidnet_write(writel, pdev, reg, val)
+#define kidnet_write(func, dev, reg, val) \
+	func(val, (uint8_t *)(((struct kidnet_adapter *)netdev_priv(dev)))->mmio_addr + reg)
+#define kidnet_writeb(dev, reg, val) kidnet_write(writeb, dev, reg, val)
+#define kidnet_writew(dev, reg, val) kidnet_write(writew, dev, reg, val)
+#define kidnet_writel(dev, reg, val) kidnet_write(writel, dev, reg, val)
 
-#define kidnet_read(func, pdev, reg) \
-	func((uint8_t *)(((struct kidnet_adapter *)netdev_priv(pdev)))->mmio_addr + reg)
-#define kidnet_readb(pdev, reg) kidnet_read(readb, pdev, reg)
-#define kidnet_readw(pdev, reg) kidnet_read(readw, pdev, reg)
-#define kidnet_readl(pdev, reg) kidnet_read(readl, pdev, reg)
+#define kidnet_read(func, dev, reg) \
+	func((uint8_t *)(((struct kidnet_adapter *)netdev_priv(dev)))->mmio_addr + reg)
+#define kidnet_readb(dev, reg) kidnet_read(readb, dev, reg)
+#define kidnet_readw(dev, reg) kidnet_read(readw, dev, reg)
+#define kidnet_readl(dev, reg) kidnet_read(readl, dev, reg)
 
 
 
@@ -24,6 +24,8 @@ struct kidnet_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct net_device_stats stats;
+
+	//uint8_t dev_addr[6];
 
 	uint32_t *mem_start;
 	int mem_len;

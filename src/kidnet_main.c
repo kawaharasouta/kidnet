@@ -53,7 +53,24 @@ static const struct net_device_ops kidnet_ops = {
 
 
 void kidnet_set_macaddr(struct net_device *netdev) {
+	uint32_t rah, ral;
+	struct kidnet_adapter *adapter;
 	
+	adapter = netdev_priv(netdev);
+	
+	rah = kidnet_readl(netdev, 0x05400);
+	ral = kidnet_readl(netdev, 0x05404);
+
+	netdev->dev_addr[0] = rah & 0xff;
+	netdev->dev_addr[1] = (rah >> 8) & 0xff;
+	netdev->dev_addr[2] = (rah >> 16) & 0xff;
+	netdev->dev_addr[3] = (rah >> 24) & 0xff;
+
+	netdev->dev_addr[4] = ral & 0xff;
+	netdev->dev_addr[5] = (ral >> 8) & 0xff;
+
+	
+	printk(KERN_INFO "%s mac addr: %02x:%02x:%02x:%02x:%02x:%02x\n", kidnet_msg, netdev->dev_addr[0], netdev->dev_addr[1], netdev->dev_addr[2], netdev->dev_addr[3], netdev->dev_addr[4], netdev->dev_addr[5]);
 }
 
 
