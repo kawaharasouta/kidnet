@@ -25,7 +25,7 @@ struct kidnet_adapter {
 	struct pci_dev *pdev;
 	struct net_device_stats stats;
 
-	//uint8_t dev_addr[6];
+	spinlock_t lock;
 
 	uint32_t *mem_start;
 	int mem_len;

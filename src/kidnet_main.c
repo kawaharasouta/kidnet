@@ -27,6 +27,12 @@ static struct pci_device_id kidnet_pci_tbl[] = {
 };
 
 irqreturn_t kidnet_intr(int irq, void *dev_id) {
+	struct kidnet_adapter *adapter = netdev_priv((struct net_device *)dev_id);
+	
+	spin_lock(&adapter->lock);
+
+
+	
 
 }
 
@@ -149,6 +155,7 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
+	spin_lock_init(&adapter->lock);
 
 	//!mmio setting
 	printk(KERN_INFO "%s pci_resource_start.\n", kidnet_msg);
