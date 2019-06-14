@@ -26,15 +26,18 @@ static struct pci_device_id kidnet_pci_tbl[] = {
 	{0,}
 };
 
-
-int kidnet_open(struct net_device *netdev) {
-	struct kidnet_adapter *adapter = netdev_priv(netdev);
-
-	
+irqreturn_t kidnet_intr(int irq, void *dev_id) {
 
 }
-int kidnet_close(struct net_device *netdev) {
 
+
+int kidnet_open(struct net_device *netdev) {
+	//struct kidnet_adapter *adapter = netdev_priv(netdev);
+
+	netif_start_queue(netdev);	
+}
+int kidnet_close(struct net_device *netdev) {
+	netif_stop_queue(netdev);
 }
 static netdev_tx_t 
 kidnet_xmit_frame(struct sk_buff *skb, struct net_device *netdev) {
@@ -140,6 +143,7 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 	printk(KERN_INFO "%s set netdev adapter.\n", kidnet_msg);
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	netdev->irq = pdev->irq;
+	printk(KERN_INFO "%s pdev->irq:%x\n", kidnet_msg, pdev->irq);
 
 	pci_set_drvdata(pdev, netdev);
 	adapter = netdev_priv(netdev);
@@ -160,6 +164,9 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 
 	//!set mac addr
 	kidnet_set_macaddr(netdev);
+
+	//!set irq. for instance, flags is SHARED.
+	ret = request_irq(pdev->irq, kidnet_intr, IRQF_SHARED, kidnet_driver_name, netdev);
 
 	printk(KERN_INFO "%s register_netdev.\n", kidnet_msg);
 	ret = register_netdev(netdev);	
@@ -187,6 +194,7 @@ kidnet_remove(struct pci_dev *pdev) {
 	struct kidnet_adapter *adapter = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
+	free_irq(pdev->irq, netdev);
 	iounmap(adapter->mmio_addr);
 	free_netdev(netdev);
 	pci_release_mem_regions(pdev);
