@@ -29,26 +29,74 @@ static struct pci_device_id kidnet_pci_tbl[] = {
 irqreturn_t kidnet_intr(int irq, void *dev_id) {
 	struct kidnet_adapter *adapter = netdev_priv((struct net_device *)dev_id);
 	
-	spin_lock(&adapter->lock);
+	//spin_lock(&adapter->lock);
 
 
-	
 
 }
 
 
 int kidnet_open(struct net_device *netdev) {
 	//struct kidnet_adapter *adapter = netdev_priv(netdev);
+	printk(KERN_INFO "%s kidnet_open.\n", kidnet_msg);
 
-	netif_start_queue(netdev);	
+	//netif_carrier_off(netdev);
+
+	//netif_start_queue(netdev);	
+	netif_wake_queue(netdev);
+	uint8_t status = kidnet_readb(netdev, 0x0000);
+	status |= 0x04;
+	printk(KERN_INFO "%s status: %02x.\n", kidnet_msg, status);
 }
 int kidnet_close(struct net_device *netdev) {
 	netif_stop_queue(netdev);
 }
+
+
+int kidnet_hw_legacy_tx(struct net_device *netdev, void *data, unsigned int len) {
+	struct kidnet_adapter *adapter = netdev_priv(netdev);
+
+	//struct kidnet_regacy_tx_desc *tail = kidnet_readl(netdev, 0x3818) | (kidnet_readl(netdev, 0x381c) << 4);
+	struct kidnet_regacy_tx_desc *tail = kidnet_readl(netdev, 0x3818);
+	printk(KERN_INFO "%s kidnet hw transmit packet.\n", kidnet_msg);
+	printk(KERN_INFO "%s tx_ring tail: %p.\n", kidnet_msg, tail);
+
+	tail->buffer_addr = (uint64_t)data;
+	tail->length = len;
+
+	tail += 4; 
+	kidnet_writel(netdev, 0x3818, tail);
+
+	return 0;
+}
+
+	
 static netdev_tx_t 
 kidnet_xmit_frame(struct sk_buff *skb, struct net_device *netdev) {
+	struct kidnet_adapter *adapter = netdev_priv(netdev);
+	int ret;
+	printk(KERN_INFO "%s kidnet transmit packet.\n", kidnet_msg);
 
+	if (skb->len < ETH_ZLEN) {
+		if (skb_pad(skb, ETH_ZLEN - skb->len)) {
+			return NETDEV_TX_OK;
+		}
+	}
+
+	//netdev->trans_start = jiffies;
+
+	ret = kidnet_hw_legacy_tx(netdev, skb->data, skb->len);
+	if (ret < 0) {
+		adapter->stats.tx_dropped++;
+		return NETDEV_TX_OK;
+	}
+
+	adapter->stats.tx_packets++;
+	adapter->stats.tx_bytes = skb->len;
+	
+	return NETDEV_TX_OK;
 }
+
 struct net_device_stats *
 kidnet_get_stats(struct net_device *dev) {
 	
@@ -174,15 +222,22 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 
 	//!set irq. for instance, flags is SHARED.
 	ret = request_irq(pdev->irq, kidnet_intr, IRQF_SHARED, kidnet_driver_name, netdev);
+	if (ret)
+		goto err_irq;
 
 	printk(KERN_INFO "%s register_netdev.\n", kidnet_msg);
 	ret = register_netdev(netdev);	
 	if (ret)
 		goto err_register;
 	
+	uint8_t status = kidnet_readb(netdev, 0x0000);
+	printk(KERN_INFO "%s status: %02x.\n", kidnet_msg, status);
+
 	return 0;
 
 err_register:
+	free_irq(pdev->irq, netdev);
+err_irq:
 	iounmap(adapter->mmio_addr);
 err_ioremap:
 	free_netdev(netdev);

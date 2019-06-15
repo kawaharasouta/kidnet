@@ -32,5 +32,11 @@ struct kidnet_adapter {
 	void *mmio_addr;
 };
 
+struct kidnet_regacy_tx_desc {
+	uint64_t buffer_addr;
+	uint16_t length;
+	uint16_t pad[3];
+};
+
 
 #endif /* _KIDNET_H_ */
