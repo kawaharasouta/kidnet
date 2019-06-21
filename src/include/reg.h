@@ -1,11 +1,39 @@
-#ifndef _KIDNET_H_
-#define _KIDNET_H_
+#ifndef _REG_H_
+#define _REG_H_
 
 
-#define INTEL_KIDNET_ETHERNET_DEVICE(device_id) {\
-				PCI_DEVICE(PCI_VENDOR_ID_INTEL, device_id)}
+
+
+
+
+//except IMS_RXSEQ
+#define IMS_ENABLE_MASK ( \
+	IMS_RXT0	 |		\
+	IMS_TXDW	 |		\
+	IMS_RXDMT0 |		\
+	IMS_LSC)
+
+//! toriaezu senngenndake sitokuYO
+#define IMS_RXT0		0x00000080
+#define IMS_TXDW		0x00000001
+#define IMS_RXDMT0	0x00000010
+#define IMS_LSC			0x00000004
 
 #if 0
+//! IMS(Interrupt Mask Set/Read Register) Mask
+#define IMS_TXDW	0x00000001
+#define IMS_TXQE	0x00000002
+#define IMS_LSC		0x00000004
+#endif
+
+
+
+
+
+
+
+
+
 #define kidnet_write(func, dev, reg, val) \
 	func(val, (uint8_t *)(((struct kidnet_adapter *)netdev_priv(dev)))->mmio_addr + reg)
 #define kidnet_writeb(dev, reg, val) kidnet_write(writeb, dev, reg, val)
@@ -17,26 +45,8 @@
 #define kidnet_readb(dev, reg) kidnet_read(readb, dev, reg)
 #define kidnet_readw(dev, reg) kidnet_read(readw, dev, reg)
 #define kidnet_readl(dev, reg) kidnet_read(readl, dev, reg)
-#endif
 
-extern char *kidnet_msg = "module [kidnet]:";
 
-struct kidnet_adapter {
-	struct net_device *netdev;
-	struct pci_dev *pdev;
-	struct net_device_stats stats;
 
-	spinlock_t lock;
 
-	uint32_t *mem_start;
-	int mem_len;
-	void *mmio_addr;
-};
-
-struct kidnet_regacy_tx_desc {
-	uint64_t buffer_addr;
-	uint16_t length;
-	uint16_t pad[3];
-};
-
-#endif /* _KIDNET_H_ */
+#endif /*_REG_H_*/

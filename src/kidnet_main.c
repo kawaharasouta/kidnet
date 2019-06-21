@@ -12,6 +12,7 @@
 
 #include"include/kidnet.h"
 #include"include/debug_util.h"
+#include"include/reg.h"
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Kawaharasouta <kawahara6514@gmail.com>");
@@ -26,6 +27,7 @@ static struct pci_device_id kidnet_pci_tbl[] = {
 	{0,}
 };
 
+
 irqreturn_t 
 kidnet_intr(int irq, void *dev_id) {
 	//struct kidnet_adapter *adapter = netdev_priv((struct net_device *)dev_id);
@@ -36,24 +38,56 @@ kidnet_intr(int irq, void *dev_id) {
 
 }
 
+static inline void 
+kidnet_global_reset(struct net_device *netdev) {
+	uint32_t ctrl;
+	ctrl = kidnet_readl(netdev, 0x0000);
+
+	//!set the RST bit.
+	ctrl |= 0x04000000;
+
+	kidnet_writel(netdev, 0x0000, ctrl);
+}
+
+static inline void 
+kidnet_enable_irq(struct net_device *netdev) {
+	uint32_t ims = kidnet_readl(netdev, 0x00D0);
+
+	ims |= IMS_ENABLE_MASK;
+	kidnet_writel(netdev, 0x00D0, ims);
+}
+
+static inline void 
+kidnet_disable_irq(struct net_device *netdev) {
+	kidnet_writel(netdev, 0x00D8, (uint32_t)IMS_ENABLE_MASK);
+}
 
 
 int 
 kidnet_open(struct net_device *netdev) {
 	printk(KERN_INFO "%s kidnet_open.\n", kidnet_msg);
 
-	//netif_carrier_off(netdev);
-	//netif_start_queue(netdev);	
+	netif_carrier_off(netdev);
+
+	kidnet_disable_irq(netdev);
+	kidnet_global_reset(netdev);
+	kidnet_disable_irq(netdev);
+
+
+
+
 	netif_wake_queue(netdev);
 
 	kidnet_dump_reg(netdev);
 	
-	uint8_t ims = kidnet_readb(netdev, 0x00D0);
-	printk(KERN_INFO "%s ims: %02x.\n", kidnet_msg, ims);
-	ims |= 0x40;
-	//kidnet_writeb(netdev, 0x00D0, ims);
-	ims = kidnet_readb(netdev, 0x00D0);
-	printk(KERN_INFO "%s ims: %02x.\n", kidnet_msg, ims);
+	//uint8_t ims = kidnet_readb(netdev, 0x00D0);
+	//printk(KERN_INFO "%s ims: %02x.\n", kidnet_msg, ims);
+	////ims |= 0x40;
+	////kidnet_writeb(netdev, 0x00D0, ims);
+	//ims = kidnet_readb(netdev, 0x00D0);
+	//printk(KERN_INFO "%s ims: %02x.\n", kidnet_msg, ims);
+
+
 }
 int 
 kidnet_close(struct net_device *netdev) {
