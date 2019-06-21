@@ -18,7 +18,7 @@
 #define kidnet_readw(dev, reg) kidnet_read(readw, dev, reg)
 #define kidnet_readl(dev, reg) kidnet_read(readl, dev, reg)
 
-
+extern char *kidnet_msg = "module [kidnet]:";
 
 struct kidnet_adapter {
 	struct net_device *netdev;
@@ -37,6 +37,5 @@ struct kidnet_regacy_tx_desc {
 	uint16_t length;
 	uint16_t pad[3];
 };
-
 
 #endif /* _KIDNET_H_ */

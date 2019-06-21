@@ -11,12 +11,12 @@
 #include<linux/rtnetlink.h>
 
 #include"include/kidnet.h"
+#include"include/debug_util.h"
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Kawaharasouta <kawahara6514@gmail.com>");
 MODULE_DESCRIPTION("network module");
 
-static char *kidnet_msg = "module [kidnet]:";
 static char kidnet_driver_name[] = "kidnet";
 
 static struct pci_device_id kidnet_pci_tbl[] = {
@@ -26,8 +26,9 @@ static struct pci_device_id kidnet_pci_tbl[] = {
 	{0,}
 };
 
-irqreturn_t kidnet_intr(int irq, void *dev_id) {
-	struct kidnet_adapter *adapter = netdev_priv((struct net_device *)dev_id);
+irqreturn_t 
+kidnet_intr(int irq, void *dev_id) {
+	//struct kidnet_adapter *adapter = netdev_priv((struct net_device *)dev_id);
 	
 	//spin_lock(&adapter->lock);
 
@@ -36,24 +37,32 @@ irqreturn_t kidnet_intr(int irq, void *dev_id) {
 }
 
 
-int kidnet_open(struct net_device *netdev) {
-	//struct kidnet_adapter *adapter = netdev_priv(netdev);
+
+int 
+kidnet_open(struct net_device *netdev) {
 	printk(KERN_INFO "%s kidnet_open.\n", kidnet_msg);
 
 	//netif_carrier_off(netdev);
-
 	//netif_start_queue(netdev);	
 	netif_wake_queue(netdev);
-	uint8_t status = kidnet_readb(netdev, 0x0000);
-	status |= 0x04;
-	printk(KERN_INFO "%s status: %02x.\n", kidnet_msg, status);
+
+	kidnet_dump_reg(netdev);
+	
+	uint8_t ims = kidnet_readb(netdev, 0x00D0);
+	printk(KERN_INFO "%s ims: %02x.\n", kidnet_msg, ims);
+	ims |= 0x40;
+	//kidnet_writeb(netdev, 0x00D0, ims);
+	ims = kidnet_readb(netdev, 0x00D0);
+	printk(KERN_INFO "%s ims: %02x.\n", kidnet_msg, ims);
 }
-int kidnet_close(struct net_device *netdev) {
+int 
+kidnet_close(struct net_device *netdev) {
 	netif_stop_queue(netdev);
 }
 
 
-int kidnet_hw_legacy_tx(struct net_device *netdev, void *data, unsigned int len) {
+int 
+kidnet_hw_legacy_tx(struct net_device *netdev, void *data, unsigned int len) {
 	struct kidnet_adapter *adapter = netdev_priv(netdev);
 
 	//struct kidnet_regacy_tx_desc *tail = kidnet_readl(netdev, 0x3818) | (kidnet_readl(netdev, 0x381c) << 4);
@@ -109,7 +118,8 @@ static const struct net_device_ops kidnet_ops = {
 };
 
 
-void kidnet_set_macaddr(struct net_device *netdev) {
+void 
+kidnet_set_macaddr(struct net_device *netdev) {
 	uint32_t rah, ral;
 	struct kidnet_adapter *adapter;
 	
@@ -230,8 +240,7 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 	if (ret)
 		goto err_register;
 	
-	uint8_t status = kidnet_readb(netdev, 0x0000);
-	printk(KERN_INFO "%s status: %02x.\n", kidnet_msg, status);
+	kidnet_dump_reg(netdev);
 
 	return 0;
 
@@ -267,23 +276,18 @@ kidnet_remove(struct pci_dev *pdev) {
 
 
 
-#if 1
-//struct pci_device_id pci_device_id;
 struct pci_driver kidnet_driver = {
 	.name = kidnet_driver_name,
 	.id_table = kidnet_pci_tbl, /* The device list this driver support. */
 	.probe = kidnet_probe, /* It is called at device detection if it is a prescribed driver, or at (possibly) modprobe otherwise. */
 	.remove =  kidnet_remove, /* It is called at device unload. */
 };
-#endif
 
 
 
-#if 1
 static const struct ethtool_ops kidnet_ethtool_ops = {
 
 };
-#endif
 
 
 static int 
