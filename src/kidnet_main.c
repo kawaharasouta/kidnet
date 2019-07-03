@@ -40,6 +40,7 @@ kidnet_intr(int irq, void *dev_id) {
 
 static inline void 
 kidnet_global_reset(struct net_device *netdev) {
+	printk(KERN_INFO "%s global_reset.\n", kidnet_msg);
 	uint32_t ctrl;
 	ctrl = kidnet_readl(netdev, 0x0000);
 
@@ -47,6 +48,19 @@ kidnet_global_reset(struct net_device *netdev) {
 	ctrl |= 0x04000000;
 
 	kidnet_writel(netdev, 0x0000, ctrl);
+	//kidnet_dump_reg(netdev);
+}
+
+static void
+kidnet_initialize_phy_setup_link(struct net_device *netdev) {
+	//!MAC setting automatically based on duplex and speed resolved by phy.
+	uint32_t ctrl;
+	ctrl = kidnet_readl(netdev, 0x0000);
+	
+	//!CTRL.SLU
+	ctrl |= 0x00000040;
+	kidnet_writel(netdev, 0x0000, ctrl);
+
 }
 
 static inline void 
@@ -63,6 +77,18 @@ kidnet_disable_irq(struct net_device *netdev) {
 }
 
 
+
+//void 
+//read_phyaddr(struct net_device *netdev) {
+//	uint32_t mdic = kidnet_readl(netdev, 0x00020);
+//printk(KERN_INFO "%s mdic: %08x.\n", kidnet_msg, mdic);
+//
+//	uint8_t phyaddr = (uint8_t)mdic >> 21 & 0x1f;
+//	printk(KERN_INFO "%s phyaddr: %02x.\n", kidnet_msg, phyaddr);
+//
+//}
+
+
 int 
 kidnet_open(struct net_device *netdev) {
 	printk(KERN_INFO "%s kidnet_open.\n", kidnet_msg);
@@ -73,10 +99,9 @@ kidnet_open(struct net_device *netdev) {
 	kidnet_global_reset(netdev);
 	kidnet_disable_irq(netdev);
 
+	kidnet_initialize_phy_setup_link(netdev);
 
-
-
-	netif_wake_queue(netdev);
+	//netif_wake_queue(netdev);
 
 	kidnet_dump_reg(netdev);
 	
@@ -86,7 +111,7 @@ kidnet_open(struct net_device *netdev) {
 	////kidnet_writeb(netdev, 0x00D0, ims);
 	//ims = kidnet_readb(netdev, 0x00D0);
 	//printk(KERN_INFO "%s ims: %02x.\n", kidnet_msg, ims);
-
+	
 
 }
 int 
@@ -264,7 +289,7 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 	//!set mac addr
 	kidnet_set_macaddr(netdev);
 
-	//!set irq. for instance, flags is SHARED.
+	//!set irq. use regacy irq.
 	ret = request_irq(pdev->irq, kidnet_intr, IRQF_SHARED, kidnet_driver_name, netdev);
 	if (ret)
 		goto err_irq;

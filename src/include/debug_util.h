@@ -23,7 +23,7 @@ kidnet_dump_ims(struct net_device *netdev) {
 	printk(KERN_INFO "%s ims: %08x.\n", kidnet_msg, ims);
 }
 
-inline void 
+void 
 kidnet_dump_reg(struct net_device *netdev) {
 	kidnet_dump_ctrl(netdev);
 	kidnet_dump_status(netdev);
