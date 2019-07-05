@@ -328,16 +328,21 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 //	if (ret)
 //		return ret;
 
-	//!add this call to get the correct BAR mask
-	bars = pci_select_bars(pdev, 0);
 
 	ret = pci_enable_device(pdev);
 	if (ret)
 		return ret;
+	
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		goto err_dma;
+	}
 
+	//!add this call to get the correct BAR mask
+	bars = pci_select_bars(pdev, 0);
 	ret = pci_request_region(pdev, bars, kidnet_driver_name);
 	if (ret)
-		return ret;
+		goto err_pci_reg;
 
 #endif
 
