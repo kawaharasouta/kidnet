@@ -76,7 +76,92 @@ kidnet_disable_irq(struct net_device *netdev) {
 	kidnet_writel(netdev, 0x00D8, (uint32_t)IMS_ENABLE_MASK);
 }
 
+static void 
+kidnet_tx_init(struct net_device *netdev) {
+	//!e1000e_setup_tx_resources
+	//!e1000e_configure_tx 
+	
+	
+	uint32_t txdctl0;
+	txdctl0 = kidnet_readl(netdev, 0x3828); 
 
+	//!TXDCTL.GRAN = 1b
+	txdctl0 |= 0x02000000;
+
+
+
+
+
+	struct kidnet_adapter *adapter = (struct kidnet_adapter *)(netdev_priv(netdev));
+	struct kidnet_ring *tx_ring = adapter->tx_ring;
+
+	int ret, size;
+	ret = -ENOMEM;
+
+	size = sizeof(struct kidnet_buffer) * tx_ring->count;
+	tx_ring->buffer_info = vzalloc(size);
+//	if (tx_ring->buffer_info)
+//		goto err;
+	
+	tx_ring->size = tx_ring->count * sizeof(struct kidnet_regacy_tx_desc);
+	tx_ring->size = ALIGN(tx_ring->size, 4096);
+
+}
+
+static int
+kidnet_alloc_queues(struct kidnet_adapter *adapter) {
+	int size;
+	size = sizeof(struct kidnet_ring);
+
+	adapter->tx_ring = kzalloc(size, GFP_KERNEL);
+	if (!adapter->tx_ring)
+		goto tx_err;
+	adapter->tx_ring->count = adapter->tx_ring_count;
+	adapter->tx_ring->adapter = adapter;
+
+
+	adapter->rx_ring = kzalloc(size, GFP_KERNEL);
+	if (!adapter->rx_ring)
+		goto rx_err;
+	adapter->rx_ring->count = adapter->rx_ring_count;
+	adapter->rx_ring->adapter = adapter;
+
+	return 0;
+
+rx_err:
+	kfree(adapter->rx_ring);
+tx_err:
+	kfree(adapter->tx_ring);
+	return -ENOMEM;
+}
+
+static void 
+kidnet_adapter_init(struct kidnet_adapter *adapter) {
+	struct net_device *netdev = adapter->netdev;
+	int ret;
+	ret = 0;
+	//! e1000_sw_init
+	//adapter->rx_buffer_len = 
+	//adapter->rx_ps_bsize0 = 128;
+	adapter->max_frame_size = netdev->mtu + ETH_FCS_LEN;
+	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
+	adapter->tx_ring_count = KIDNET_DEFAULT_TXD;
+	adapter->rx_ring_count = KIDNET_DEFAULT_RXD;
+
+	spin_lock_init(&adapter->lock);
+
+
+//	//!e1000_alloc_queues
+//	adapter->tx_ring = kzalloc(size, GFP_KERNEL);
+//	if (!tx_ring)
+//		return ret;
+
+	ret = kidnet_alloc_queues(adapter);
+//	if (ret)
+//		return ret;
+	return ret;
+
+}
 
 //void 
 //read_phyaddr(struct net_device *netdev) {
@@ -105,13 +190,12 @@ kidnet_open(struct net_device *netdev) {
 
 	kidnet_dump_reg(netdev);
 	
-	//uint8_t ims = kidnet_readb(netdev, 0x00D0);
-	//printk(KERN_INFO "%s ims: %02x.\n", kidnet_msg, ims);
-	////ims |= 0x40;
-	////kidnet_writeb(netdev, 0x00D0, ims);
-	//ims = kidnet_readb(netdev, 0x00D0);
-	//printk(KERN_INFO "%s ims: %02x.\n", kidnet_msg, ims);
+
+	//!allocate tx descripter
+
+	//!allocate rx descripter
 	
+
 
 }
 int 
@@ -272,7 +356,10 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
-	spin_lock_init(&adapter->lock);
+
+	//! setup adapter struct 
+	kidnet_adapter_init(adapter);
+	//kidnet_disable_irq(netdev);
 
 	//!mmio setting
 	printk(KERN_INFO "%s pci_resource_start.\n", kidnet_msg);
