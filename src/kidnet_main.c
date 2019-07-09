@@ -60,7 +60,6 @@ kidnet_initialize_phy_setup_link(struct net_device *netdev) {
 	//!CTRL.SLU
 	ctrl |= 0x00000040;
 	kidnet_writel(netdev, 0x0000, ctrl);
-
 }
 
 static inline void 
@@ -76,40 +75,168 @@ kidnet_disable_irq(struct net_device *netdev) {
 	kidnet_writel(netdev, 0x00D8, (uint32_t)IMS_ENABLE_MASK);
 }
 
+
+static int kidnet_alloc_ringdesc_dma(struct kidnet_adapter *adapter, struct kidnet_ring *ring) {
+	struct pci_dev *pdev = adapter->pdev;
+
+	ring->desc = dma_alloc_coherent(&pdev->dev, ring->size, &ring->dma, GFP_KERNEL);
+
+	if (!ring->desc)
+		return -ENOMEM;
+	
+	return 0;
+}
+
 static void 
-kidnet_tx_init(struct net_device *netdev) {
-	//!e1000e_setup_tx_resources
+kidnet_tx_configure(struct kidnet_adapter *adapter) {
 	//!e1000e_configure_tx 
+	//!init desc
+	struct kidnet_ring *tx_ring = adapter->tx_ring;
+	struct net_device *netdev = adapter->netdev;
+	uint64_t tdba;
+	uint32_t tdlen;
+
+	//! config tx descripter.
+	tdba = tx_ring->dma;
+	tdlen = tx_ring->count * sizeof(struct kidnet_regacy_tx_desc);
+
+	kidnet_writel(netdev, 0x3800, tdba & DMA_BIT_MASK(32)); //TDBAL
+	kidnet_writel(netdev, 0x3804, tdba >> 32);					//TDBAH
+	kidnet_writel(netdev, 0x3808, tdlen);								//TDLEN
+	kidnet_writel(netdev, 0x3810, 0);								//TDH
+	kidnet_writel(netdev, 0x3818, 0);								//TDT
 	
+	tx_ring->head = adapter->mmio_addr + 0x3810;
+	tx_ring->tail = adapter->mmio_addr + 0x3818;
+
+	return;
+}
+
+static int 
+kidnet_tx_setup(struct net_device *netdev) {
+	//!tx_reg_setting
 	
-	uint32_t txdctl0;
-	txdctl0 = kidnet_readl(netdev, 0x3828); 
+	uint32_t txdctl, tctl, tipg;
+	//txdctl = kidnet_readl(netdev, 0x3828); 
+	//tctl = kidnet_readl(netdev, 0x0400); 
+	//tipg = kidnet_readl(netdev, 0x0410); 
 
-	//!TXDCTL.GRAN = 1b
-	txdctl0 |= 0x02000000;
+	//!TXDCTL GRAN = 1b, WTHRESH = 1b, all other fiekds 0b.
+	txdctl = 0x02010000;
+
+	//!TCTL CT = 0x0f, COLD : HDX = 0x1ff, FDC = 0x3f
+	//!			PSP = 1b, EN = 1b, all other fields = 0b.
+	tctl = 0x0003f0fa;
+
+	//!TIPG IPGT = 8, IPGR1 = 2, IPGR2 = 10
+	tipg = 0x10100808;
+
+	//!write val
+	kidnet_writel(netdev, 0x3828, txdctl);
+	kidnet_writel(netdev, 0x0400, tctl);
+	kidnet_writel(netdev, 0x0410, tipg);
 
 
-
-
-
+	//!e1000e_setup_tx_resources
+	//!init buffer
 	struct kidnet_adapter *adapter = (struct kidnet_adapter *)(netdev_priv(netdev));
 	struct kidnet_ring *tx_ring = adapter->tx_ring;
-
 	int ret, size;
-	ret = -ENOMEM;
 
+	ret = -ENOMEM;
 	size = sizeof(struct kidnet_buffer) * tx_ring->count;
 	tx_ring->buffer_info = vzalloc(size);
-//	if (tx_ring->buffer_info)
-//		goto err;
+	if (tx_ring->buffer_info)
+		goto err;
 	
 	tx_ring->size = tx_ring->count * sizeof(struct kidnet_regacy_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 
+	ret = kidnet_alloc_ringdesc_dma(adapter, tx_ring);
+	if (ret)
+		goto err;
+
+	kidnet_tx_configure(adapter);
+
+	return ret;
+	
+err:
+	vfree(tx_ring->buffer_info);
+	return ret;
+}
+
+static void  
+kidnet_rx_configure(struct kidnet_adapter *adapter) {
+	uint64_t rdba;
+	uint32_t rdlen, rctl;
+	struct kidnet_ring *rx_ring = adapter->rx_ring;
+	struct net_device *netdev = adapter->netdev;
+
+	rdba = rx_ring->dma;
+	rdlen = rx_ring->count * sizeof(struct kidnet_regacy_rx_desc);
+
+
+	//!write desc
+	kidnet_writel(netdev, 0x2800, rdba & DMA_BIT_MASK(32)); //RDBAL
+	kidnet_writel(netdev, 0x2804, rdba >> 32);							//RDBAH
+	kidnet_writel(netdev, 0x2808, rdlen);										//RDLEN
+	kidnet_writel(netdev, 0x2810, 0);												//TDH
+	kidnet_writel(netdev, 0x2818, 0);												//TDT
+
+	rx_ring->head = adapter->mmio_addr + 0x2810;
+	rx_ring->tail = adapter->mmio_addr + 0x2818;
+
+
+	rctl = kidnet_readl(netdev, 0x0100); 
+
+	//!EN = 1b, VFE = 0b
+	rctl |= 0x00000002;
+	rctl &= 0xfffbffff;
+
+	kidnet_writel(netdev, 0x0100, rctl);
+
+	return;
+}
+
+static int 
+kidnet_rx_setup(struct net_device *netdev) {
+	struct kidnet_adapter *adapter = (struct kidnet_adapter *)(netdev_priv(netdev));
+	struct kidnet_ring *rx_ring = adapter->rx_ring;
+	int ret, size;
+
+	ret = -ENOMEM;
+	size = sizeof(struct kidnet_buffer) * rx_ring->count;
+	rx_ring->buffer_info = vzalloc(size);
+	if (rx_ring->buffer_info)
+		goto err;
+
+	rx_ring->size = rx_ring->count * sizeof(struct kidnet_regacy_rx_desc);
+	rx_ring->size = ALIGN(rx_ring->size, 4096);
+
+	ret = kidnet_alloc_ringdesc_dma(adapter, rx_ring);
+	if (ret)
+		goto err;
+
+	kidnet_rx_configure(adapter);
+
+
+	int ics;
+
+	ics = kidnet_readl(netdev, 0x00c8); 
+	//!
+	ics |= 0x000000d4;
+	
+	kidnet_rx_configure(adapter);
+
+	return ret;
+
+err:
+	vfree(rx_ring->buffer_info);
+	return ret;
 }
 
 static int
-kidnet_alloc_queues(struct kidnet_adapter *adapter) {
+kidnet_alloc_ring(struct kidnet_adapter *adapter) {
 	int size;
 	size = sizeof(struct kidnet_ring);
 
@@ -151,12 +278,7 @@ kidnet_adapter_init(struct kidnet_adapter *adapter) {
 	spin_lock_init(&adapter->lock);
 
 
-//	//!e1000_alloc_queues
-//	adapter->tx_ring = kzalloc(size, GFP_KERNEL);
-//	if (!tx_ring)
-//		return ret;
-
-	ret = kidnet_alloc_queues(adapter);
+	ret = kidnet_alloc_ring(adapter);
 //	if (ret)
 //		return ret;
 	return ret;
@@ -178,7 +300,7 @@ int
 kidnet_open(struct net_device *netdev) {
 	printk(KERN_INFO "%s kidnet_open.\n", kidnet_msg);
 
-	netif_carrier_off(netdev);
+	netif_stop_queue(netdev);
 
 	kidnet_disable_irq(netdev);
 	kidnet_global_reset(netdev);
@@ -186,17 +308,31 @@ kidnet_open(struct net_device *netdev) {
 
 	kidnet_initialize_phy_setup_link(netdev);
 
-	//netif_wake_queue(netdev);
+
+	//!tx_config
+	kidnet_tx_setup(netdev);
+
+	//!rx_config
+	kidnet_rx_setup(netdev);
+
+	kidnet_enable_irq(netdev);
+
+	netif_start_queue(netdev);
+
+
+	//!ims up RxQ0, TxQ0
+	uint32_t ims;
+	ims = kidnet_readl(netdev, 0x00d0);
+	ims |= 0x00500000;
+	kidnet_writel(netdev, 0x00d0, ims);
+
+	//!link up (ICR.LSC)
+	uint32_t icr;
+	icr = kidnet_readl(netdev, 0x00c0);
+	printk(KERN_INFO "%s icr: %08x.\n", kidnet_msg, icr);
+
 
 	kidnet_dump_reg(netdev);
-	
-
-	//!allocate tx descripter
-
-	//!allocate rx descripter
-	
-
-
 }
 int 
 kidnet_close(struct net_device *netdev) {

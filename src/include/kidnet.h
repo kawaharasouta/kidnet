@@ -24,10 +24,10 @@
 
 extern char *kidnet_msg = "module [kidnet]:";
 
-struct kidnet_ps_page {
-	struct page *page;
-	uint64_t addr;
-};
+//struct kidnet_ps_page {
+//	struct page *page;
+//	uint64_t addr;
+//};
 
 struct kidnet_buffer {
 	uint64_t addr;
@@ -53,12 +53,12 @@ struct kidnet_buffer {
 struct kidnet_ring {
 	struct kidnet_adapter *adapter;
 	void *desc;
-	uint64_t addr;
+	dma_addr_t dma;
 	uint32_t size;
 	uint32_t count;
 
-	uint16_t next_to_use;
-	uint16_t next_to_clean;
+//	uint16_t next_to_use;
+//	uint16_t next_to_clean;
 
 	void *tail;
 	void *head;
@@ -98,5 +98,15 @@ struct kidnet_regacy_tx_desc {
 	uint16_t length;
 	uint16_t pad[3];
 };
+
+struct kidnet_regacy_rx_desc {
+	uint64_t buffer_addr;
+	uint16_t length;
+	uint16_t csum;
+	uint8_t status;
+	uint8_t err;
+	uint16_t vlan;
+};
+
 
 #endif /* _KIDNET_H_ */
