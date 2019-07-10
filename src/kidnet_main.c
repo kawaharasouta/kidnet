@@ -9,6 +9,7 @@
 #include<linux/timer.h>
 #include<linux/workqueue.h>
 #include<linux/rtnetlink.h>
+#include<linux/pm_runtime.h>
 
 #include"include/kidnet.h"
 #include"include/debug_util.h"
@@ -40,7 +41,7 @@ kidnet_intr(int irq, void *dev_id) {
 
 static inline void 
 kidnet_global_reset(struct net_device *netdev) {
-	printk(KERN_INFO "%s global_reset.\n", kidnet_msg);
+	//printk(KERN_INFO "%s global_reset.\n", kidnet_msg);
 	uint32_t ctrl;
 	ctrl = kidnet_readl(netdev, 0x0000);
 
@@ -72,7 +73,7 @@ kidnet_enable_irq(struct net_device *netdev) {
 
 static inline void 
 kidnet_disable_irq(struct net_device *netdev) {
-	kidnet_writel(netdev, 0x00D8, (uint32_t)IMS_ENABLE_MASK);
+	kidnet_writel(netdev, 0x00D8, ~0);
 }
 
 
@@ -298,9 +299,12 @@ kidnet_adapter_init(struct kidnet_adapter *adapter) {
 
 int 
 kidnet_open(struct net_device *netdev) {
-	printk(KERN_INFO "%s kidnet_open.\n", kidnet_msg);
+	struct pci_dev *pdev = ((struct kidnet_adapter *)(netdev_priv(netdev)))->pdev;
+	//printk(KERN_INFO "%s kidnet_open.\n", kidnet_msg);
 
 	netif_stop_queue(netdev);
+
+	//pm_runtime_get_sync(&pdev->dev);
 
 	kidnet_disable_irq(netdev);
 	kidnet_global_reset(netdev);
@@ -315,9 +319,11 @@ kidnet_open(struct net_device *netdev) {
 	//!rx_config
 	kidnet_rx_setup(netdev);
 
-	kidnet_enable_irq(netdev);
 
-	netif_start_queue(netdev);
+	kidnet_enable_irq(netdev);
+	//////////////!!!!!!!!!!!!!!!!!!!!error!!!!!!!!!!!!!!!!
+	//netif_start_queue(netdev);
+	//pm_runtime_put(&pdev->dev);
 
 
 	//!ims up RxQ0, TxQ0
@@ -329,10 +335,10 @@ kidnet_open(struct net_device *netdev) {
 	//!link up (ICR.LSC)
 	uint32_t icr;
 	icr = kidnet_readl(netdev, 0x00c0);
-	printk(KERN_INFO "%s icr: %08x.\n", kidnet_msg, icr);
+	//printk(KERN_INFO "%s icr: %08x.\n", kidnet_msg, icr);
 
-
-	kidnet_dump_reg(netdev);
+	//kidnet_dump_reg(netdev);
+	return 0;
 }
 int 
 kidnet_close(struct net_device *netdev) {
@@ -346,8 +352,8 @@ kidnet_hw_legacy_tx(struct net_device *netdev, void *data, unsigned int len) {
 
 	//struct kidnet_regacy_tx_desc *tail = kidnet_readl(netdev, 0x3818) | (kidnet_readl(netdev, 0x381c) << 4);
 	struct kidnet_regacy_tx_desc *tail = kidnet_readl(netdev, 0x3818);
-	printk(KERN_INFO "%s kidnet hw transmit packet.\n", kidnet_msg);
-	printk(KERN_INFO "%s tx_ring tail: %p.\n", kidnet_msg, tail);
+	//printk(KERN_INFO "%s kidnet hw transmit packet.\n", kidnet_msg);
+	//printk(KERN_INFO "%s tx_ring tail: %p.\n", kidnet_msg, tail);
 
 	tail->buffer_addr = (uint64_t)data;
 	tail->length = len;
@@ -415,8 +421,7 @@ kidnet_set_macaddr(struct net_device *netdev) {
 	netdev->dev_addr[4] = ral & 0xff;
 	netdev->dev_addr[5] = (ral >> 8) & 0xff;
 
-	
-	printk(KERN_INFO "%s mac addr: %02x:%02x:%02x:%02x:%02x:%02x\n", kidnet_msg, netdev->dev_addr[0], netdev->dev_addr[1], netdev->dev_addr[2], netdev->dev_addr[3], netdev->dev_addr[4], netdev->dev_addr[5]);
+	//printk(KERN_INFO "%s mac addr: %02x:%02x:%02x:%02x:%02x:%02x\n", kidnet_msg, netdev->dev_addr[0], netdev->dev_addr[1], netdev->dev_addr[2], netdev->dev_addr[3], netdev->dev_addr[4], netdev->dev_addr[5]);
 }
 
 
@@ -482,16 +487,16 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 
 #endif
 
-	printk(KERN_INFO "%s alloc_etherdev.\n", kidnet_msg);
+	//printk(KERN_INFO "%s alloc_etherdev.\n", kidnet_msg);
 	ret = -ENOMEM;
 	netdev = alloc_etherdev(sizeof(struct kidnet_adapter));
 	if (!netdev)
 		goto err_alloc_etherdev;
 
-	printk(KERN_INFO "%s set netdev adapter.\n", kidnet_msg);
+	//printk(KERN_INFO "%s set netdev adapter.\n", kidnet_msg);
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	netdev->irq = pdev->irq;
-	printk(KERN_INFO "%s pdev->irq:%x\n", kidnet_msg, pdev->irq);
+	//printk(KERN_INFO "%s pdev->irq:%x\n", kidnet_msg, pdev->irq);
 
 	pci_set_drvdata(pdev, netdev);
 	adapter = netdev_priv(netdev);
@@ -503,11 +508,11 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 	//kidnet_disable_irq(netdev);
 
 	//!mmio setting
-	printk(KERN_INFO "%s pci_resource_start.\n", kidnet_msg);
+	//printk(KERN_INFO "%s pci_resource_start.\n", kidnet_msg);
 	mmio_start = pci_resource_start(pdev, bars);
 	mmio_len	= pci_resource_len(pdev, bars);
 	ret = EIO;
-	printk(KERN_INFO "%s ioremap.\n", kidnet_msg);
+	//printk(KERN_INFO "%s ioremap.\n", kidnet_msg);
 	adapter->mmio_addr = ioremap(mmio_start, mmio_len);
 	if (!adapter->mmio_addr)
 		goto err_ioremap;
@@ -522,12 +527,12 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 	if (ret)
 		goto err_irq;
 
-	printk(KERN_INFO "%s register_netdev.\n", kidnet_msg);
+	//printk(KERN_INFO "%s register_netdev.\n", kidnet_msg);
 	ret = register_netdev(netdev);	
 	if (ret)
 		goto err_register;
 	
-	kidnet_dump_reg(netdev);
+	//kidnet_dump_reg(netdev);
 
 	return 0;
 
