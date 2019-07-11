@@ -22,6 +22,8 @@ MODULE_DESCRIPTION("network module");
 static char kidnet_driver_name[] = "kidnet";
 
 static struct pci_device_id kidnet_pci_tbl[] = {
+  INTEL_KIDNET_ETHERNET_DEVICE(0x2E6E), /* e1000 kvm */
+
 	INTEL_KIDNET_ETHERNET_DEVICE(0x10d3), /* 82574L */
 	INTEL_KIDNET_ETHERNET_DEVICE(0x1528), /* X540-t1, X540-t2 */
 	/* required last entry */
