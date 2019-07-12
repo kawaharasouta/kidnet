@@ -300,11 +300,12 @@ kidnet_adapter_init(struct kidnet_adapter *adapter) {
 int 
 kidnet_open(struct net_device *netdev) {
 	struct pci_dev *pdev = ((struct kidnet_adapter *)(netdev_priv(netdev)))->pdev;
+	struct netdev_queue *queue;
 	//printk(KERN_INFO "%s kidnet_open.\n", kidnet_msg);
 
 	netif_stop_queue(netdev);
 
-	//pm_runtime_get_sync(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	kidnet_disable_irq(netdev);
 	kidnet_global_reset(netdev);
@@ -320,9 +321,12 @@ kidnet_open(struct net_device *netdev) {
 	kidnet_rx_setup(netdev);
 
 
+	//netif_carrier_on(netdev);
 	kidnet_enable_irq(netdev);
 	//////////////!!!!!!!!!!!!!!!!!!!!error!!!!!!!!!!!!!!!!
+	//queue = netdev_get_tx_queue(netdev, 0);
 	//netif_start_queue(netdev);
+	
 	//pm_runtime_put(&pdev->dev);
 
 
@@ -518,6 +522,10 @@ kidnet_probe(struct pci_dev *pdev, const struct pci_device_id *ent) {
 		goto err_ioremap;
 
 	netdev->netdev_ops = &kidnet_ops;
+
+	//! set netdev mmio.
+	netdev->mem_start = mmio_start;
+	netdev->mem_end = mmio_start + mmio_len;
 
 	//!set mac addr
 	kidnet_set_macaddr(netdev);
