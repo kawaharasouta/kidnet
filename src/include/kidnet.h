@@ -30,7 +30,7 @@ extern char *kidnet_msg = "module [kidnet]:";
 //};
 
 struct kidnet_buffer {
-	uint64_t addr;
+	dma_addr_t dma;
 	struct sk_buff *skb;
 	union {
 		//tx
@@ -57,8 +57,8 @@ struct kidnet_ring {
 	uint32_t size;
 	uint32_t count;
 
-//	uint16_t next_to_use;
-//	uint16_t next_to_clean;
+	uint16_t next_to_use;
+	uint16_t next_to_clean;
 
 	void *tail;
 	void *head;

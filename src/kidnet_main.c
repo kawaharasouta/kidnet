@@ -114,6 +114,9 @@ kidnet_tx_configure(struct kidnet_adapter *adapter) {
 	tx_ring->head = adapter->mmio_addr + 0x3810;
 	tx_ring->tail = adapter->mmio_addr + 0x3818;
 
+	tx_ring->next_to_use = 0;
+	tx_ring->next_to_clean = 0;
+
 	return;
 }
 
@@ -355,21 +358,39 @@ kidnet_close(struct net_device *netdev) {
 
 
 int 
-kidnet_hw_legacy_tx(struct net_device *netdev, void *data, unsigned int len) {
+kidnet_hw_legacy_tx(struct sk_buff *skb, struct net_device *netdev) {
 	struct kidnet_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev = adapter->pdev;
+	struct kidnet_ring *tx_ring = adapter->tx_ring;
+	struct kidnet_regacy_tx_desc *tx_desc;
+	struct kidnet_buffer *buffer_info;
+	int index = tx_ring->next_to_use;
 
-	//struct kidnet_regacy_tx_desc *tail = kidnet_readl(netdev, 0x3818) | (kidnet_readl(netdev, 0x381c) << 4);
-	struct kidnet_regacy_tx_desc *tail = kidnet_readl(netdev, 0x3818);
-	//printk(KERN_INFO "%s kidnet hw transmit packet.\n", kidnet_msg);
-	//printk(KERN_INFO "%s tx_ring tail: %p.\n", kidnet_msg, tail);
+		
+	//!map
+	buffer_info = &tx_ring->buffer_info[index];
+	buffer_info->dma = dma_map_single(&pdev->dev, skb->data, skb->len, DMA_TO_DEVICE);
+	if (dma_mapping_error(&pdev->dev, buffer_info->dma))
+			goto dma_err;
 
-	tail->buffer_addr = (uint64_t)data;
-	tail->length = len;
 
-	tail += 4; 
-	kidnet_writel(netdev, 0x3818, tail);
+	tx_desc = (struct kidnet_regacy_tx_desc *)&tx_ring->desc[index];
+	tx_desc->buffer_addr = cpu_to_le64(buffer_info->dma);
+	tx_desc->length = cpu_to_le16(skb->len);
 
-	return 0;
+	kidnet_writel(netdev, index, tx_ring->tail);
+
+	index++;
+	if (unlikely(index == tx_ring->count))
+		index = 0;
+	tx_ring->next_to_use = index;
+	
+	return 1;
+
+dma_err:
+	buffer_info->dma = 0;
+	return -1;
+
 }
 
 	
@@ -380,15 +401,16 @@ kidnet_xmit_frame(struct sk_buff *skb, struct net_device *netdev) {
 	printk(KERN_INFO "%s kidnet transmit packet.\n", kidnet_msg);
 
 
-	if (skb->len < ETH_ZLEN) {
-		if (skb_pad(skb, ETH_ZLEN - skb->len)) {
-			return NETDEV_TX_OK;
-		}
-	}
+	if (eth_skb_pad(skb)) 
+		return NETDEV_TX_OK;
+		
+	
 
 	//netdev->trans_start = jiffies;
 
-//	ret = kidnet_hw_legacy_tx(netdev, skb->data, skb->len);
+	//netdev_sent_queue(netdev, skb->len);
+	//skb_tx_timestamp(skb);
+//	ret = kidnet_hw_legacy_tx(skb, netdev);
 	if (ret < 0) {
 		adapter->stats.tx_dropped++;
 		return NETDEV_TX_OK;
