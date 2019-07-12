@@ -22,6 +22,7 @@ MODULE_DESCRIPTION("network module");
 static char kidnet_driver_name[] = "kidnet";
 
 static struct pci_device_id kidnet_pci_tbl[] = {
+  INTEL_KIDNET_ETHERNET_DEVICE(0x100E),
   INTEL_KIDNET_ETHERNET_DEVICE(0x2E6E), /* e1000 kvm */
 
 	INTEL_KIDNET_ETHERNET_DEVICE(0x10d3), /* 82574L */
@@ -36,9 +37,10 @@ kidnet_intr(int irq, void *dev_id) {
 	//struct kidnet_adapter *adapter = netdev_priv((struct net_device *)dev_id);
 	
 	//spin_lock(&adapter->lock);
+	printk(KERN_INFO "%s reception.\n", kidnet_msg);
 
 
-
+	return IRQ_HANDLED;
 }
 
 static inline void 
@@ -327,7 +329,7 @@ kidnet_open(struct net_device *netdev) {
 	kidnet_enable_irq(netdev);
 	//////////////!!!!!!!!!!!!!!!!!!!!error!!!!!!!!!!!!!!!!
 	//queue = netdev_get_tx_queue(netdev, 0);
-	//netif_start_queue(netdev);
+	netif_start_queue(netdev);
 	
 	//pm_runtime_put(&pdev->dev);
 
@@ -377,6 +379,7 @@ kidnet_xmit_frame(struct sk_buff *skb, struct net_device *netdev) {
 	int ret;
 	printk(KERN_INFO "%s kidnet transmit packet.\n", kidnet_msg);
 
+
 	if (skb->len < ETH_ZLEN) {
 		if (skb_pad(skb, ETH_ZLEN - skb->len)) {
 			return NETDEV_TX_OK;
@@ -385,7 +388,7 @@ kidnet_xmit_frame(struct sk_buff *skb, struct net_device *netdev) {
 
 	//netdev->trans_start = jiffies;
 
-	ret = kidnet_hw_legacy_tx(netdev, skb->data, skb->len);
+//	ret = kidnet_hw_legacy_tx(netdev, skb->data, skb->len);
 	if (ret < 0) {
 		adapter->stats.tx_dropped++;
 		return NETDEV_TX_OK;
@@ -393,6 +396,7 @@ kidnet_xmit_frame(struct sk_buff *skb, struct net_device *netdev) {
 
 	adapter->stats.tx_packets++;
 	adapter->stats.tx_bytes = skb->len;
+
 	
 	return NETDEV_TX_OK;
 }
